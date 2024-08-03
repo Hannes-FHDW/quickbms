@@ -276,7 +276,7 @@ static void cumulate()	{ int i,cl;
 
 static unsigned char *fs;
 static uint DecodeBlock(uchar *bin)	{
-	register int i,pos; step();
+	int i,pos; step();
 	if(!(n=px.Decode(bin))) return 0;
 	baza = px.ran_decode(0);
 	memset(rb, 0, 0x100*sizeof(int));
