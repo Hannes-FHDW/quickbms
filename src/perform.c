@@ -1539,14 +1539,23 @@ int perform_encryption(u8 *data, int datalen) {
         if(!g_encrypt_mode) {
 
         // X = public or private    Y = decrypt or encrypt
-        #define QUICKBMS_OPENSSL_RSA(X, Y) \
-            if(!rsa_ctx->openssl_rsa || RSA_##X##_##Y (datalen, data, data, rsa_ctx->openssl_rsa, RSA_PKCS1_PADDING) < 0) \
-            if(!rsa_ctx->openssl_rsa || RSA_##X##_##Y (datalen, data, data, rsa_ctx->openssl_rsa, RSA_SSLV23_PADDING) < 0) \
-            if(!rsa_ctx->openssl_rsa || RSA_##X##_##Y (datalen, data, data, rsa_ctx->openssl_rsa, RSA_NO_PADDING) < 0) \
-            if(!rsa_ctx->openssl_rsa || RSA_##X##_##Y (datalen, data, data, rsa_ctx->openssl_rsa, RSA_PKCS1_OAEP_PADDING) < 0) \
-            if(!rsa_ctx->openssl_rsa || RSA_##X##_##Y (datalen, data, data, rsa_ctx->openssl_rsa, RSA_X931_PADDING) < 0) \
-            if(!rsa_ctx->openssl_rsa || RSA_##X##_##Y (datalen, data, data, rsa_ctx->openssl_rsa, RSA_PKCS1_PSS_PADDING) < 0)
-
+        #ifdef RSA_SSLV23_PADDING
+            #define QUICKBMS_OPENSSL_RSA(X, Y) \
+                if(!rsa_ctx->openssl_rsa || RSA_##X##_##Y (datalen, data, data, rsa_ctx->openssl_rsa, RSA_PKCS1_PADDING) < 0) \
+                if(!rsa_ctx->openssl_rsa || RSA_##X##_##Y (datalen, data, data, rsa_ctx->openssl_rsa, RSA_SSLV23_PADDING) < 0) \
+                if(!rsa_ctx->openssl_rsa || RSA_##X##_##Y (datalen, data, data, rsa_ctx->openssl_rsa, RSA_NO_PADDING) < 0) \
+                if(!rsa_ctx->openssl_rsa || RSA_##X##_##Y (datalen, data, data, rsa_ctx->openssl_rsa, RSA_PKCS1_OAEP_PADDING) < 0) \
+                if(!rsa_ctx->openssl_rsa || RSA_##X##_##Y (datalen, data, data, rsa_ctx->openssl_rsa, RSA_X931_PADDING) < 0) \
+                if(!rsa_ctx->openssl_rsa || RSA_##X##_##Y (datalen, data, data, rsa_ctx->openssl_rsa, RSA_PKCS1_PSS_PADDING) < 0)
+        #else
+            #define QUICKBMS_OPENSSL_RSA(X, Y) \
+                if(!rsa_ctx->openssl_rsa || RSA_##X##_##Y (datalen, data, data, rsa_ctx->openssl_rsa, RSA_PKCS1_PADDING) < 0) \
+                if(!rsa_ctx->openssl_rsa || RSA_##X##_##Y (datalen, data, data, rsa_ctx->openssl_rsa, RSA_NO_PADDING) < 0) \
+                if(!rsa_ctx->openssl_rsa || RSA_##X##_##Y (datalen, data, data, rsa_ctx->openssl_rsa, RSA_PKCS1_OAEP_PADDING) < 0) \
+                if(!rsa_ctx->openssl_rsa || RSA_##X##_##Y (datalen, data, data, rsa_ctx->openssl_rsa, RSA_X931_PADDING) < 0) \
+                if(!rsa_ctx->openssl_rsa || RSA_##X##_##Y (datalen, data, data, rsa_ctx->openssl_rsa, RSA_PKCS1_PSS_PADDING) < 0)
+        #endif
+        
         // X = function name    ... = arguments
         #define QUICKBMS_TOMCRYPT_RSA(X, ...) \
             if(!rsa_ctx->is_tomcrypt || !(tmp = datalen) || (X(data, datalen, data, (void *)&tmp, NULL, 0, __VA_ARGS__, &rsa_ctx->tomcrypt_rsa) != CRYPT_OK))
@@ -1590,7 +1599,7 @@ int perform_encryption(u8 *data, int datalen) {
 
         if(0) {
         #define QUICKBMS_ECRYPT_perform
-        #include "encryption/ecrypt.h"
+        #include "ecrypt.h"
         #undef QUICKBMS_ECRYPT_perform
         }
 
@@ -2402,7 +2411,7 @@ int perform_compression(u8 *in, int zsize, u8 **ret_out, int size, int *outsize,
         QUICK_COMP_CASE(TORNADO) size = tornado_decompress(in, zsize, out, size, -1);
         QUICK_COMP_CASE(XPKSQSH) size = xpkSQSH_unsqsh(in, out);
         #if defined(__i386__) || defined(__x86_64__)
-        #ifndef __APPLE__
+        #if !defined(__APPLE__) && defined(__INCLUDE_AMIGASTUFF__)
         QUICK_COMP_CASE(AMIGA_UNSQUASH) size = amiga_unsquash(in, zsize, out);
         QUICK_COMP_CASE(AMIGA_BYTEKILLER) BYTUNP(zsize, 0, 0, 0, 0, in, out, size);
         QUICK_COMP_CASE(AMIGA_FLASHSPEED) size = UFLSP(out, in, 0);
