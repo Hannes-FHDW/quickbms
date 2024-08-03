@@ -1,209 +1,383 @@
-# NXPK npk (script 0.3.9a)
-#   Demon Seals HD and others
-# script for QuickBMS http://quickbms.aluigi.org
+# NXPK .npk (script v0.4.3) 2024-07-29
+# Authors: aluigi, TeaEffTeu
+QuickBMSver 0.12.0
+
+# NOTE: certain portions of this script written by aluigi may no longer work and are not verified by TeaEffTeu
+
+# Supported Games
+# Identity V
+# Onmyoji
+
+/**************************************************************************************************/
+/* Search for Original File Names */
+/**************************************************************************************************/
+
+# UNVERIFIED
+# NOTE: if this process fails, original file names are impossible to retrieve
 
 get EXT extension
-
 math NAMES = -1
 math EXISTS = 0
 
-math NAMES_METHOD = 0
-
+# search for carriage files
 /*
 # this format is totally useless because it's only a sequence of integers
-    string TMP p "%s_hash" EXT
-    open FDDE TMP 1 EXISTS
+# ^ note by alugi
 if EXISTS == 0
-    string TMP p "%s.hash" EXT
-    open FDDE TMP 1 EXISTS
+	# name.npk_hash
+	string TMP p "%s_hash" EXT
+	open FDDE TMP 1 EXISTS
+endif
+if EXISTS == 0
+	# name.npk.hash
+	string TMP p "%s.hash" EXT
+	open FDDE TMP 1 EXISTS
 endif
 */
 if EXISTS == 0
-    open FDDE "hash" 1 EXISTS
+	# name.hash
+	open FDDE "hash" 1 EXISTS
 endif
 if EXISTS == 0
-    string TMP p "%s.info" EXT
-    open FDDE TMP 1 EXISTS
+	# name.npk.info
+	string TMP p "%s.info" EXT
+	open FDDE TMP 1 EXISTS
 endif
-
 if EXISTS != 0
+	math NAMES_METHOD = 0
+	comtype zlib_noerror
+	get TMP1 byte 1
+	get TMP2 byte 1
+	if TMP1 == 0x1f && TMP2 == 0x8b
+		comtype gzip
+	endif
 
-    comtype zlib_noerror
-    get TMP1 byte 1
-    get TMP2 byte 1
-    if TMP1 == 0x1f && TMP2 == 0x8b
-        comtype gzip
-    endif
-
-    get SIZE asize 1
-    clog MEMORY_FILE 0 SIZE SIZE 1
-    get SIZE asize MEMORY_FILE
-    for i = 0
-        savepos TMP MEMORY_FILE
-        if TMP >= SIZE
-            break
-        endif
-        get TMP line MEMORY_FILE
-        getvarchr TMP0 TMP 0
-        if NAMES >= 0
-            if TMP0 == 0x53 || TMP0 == 0x73 # "S" and "sS"
-                if TMP0 == 0x53     # "S'"
-                    string TMP << 2
-                else
-                    string TMP << 3
-                endif
-                string TMP - 1
-                if i & 1
-                    string TMP2 x TMP
-                    set TMP string "_"
-                    for x = 0 < 16
-                        getvarchr TMP3 TMP2 x
-                        string TMP3 p "%02X" TMP3
-                        string TMP + TMP3
-                    next x
-                    putarray 10 NAMES TMP
-                    math NAMES + 1
-                else
-                    putarray 11 NAMES TMP
-                endif
-                math i + 1
-            endif
-        else
-            if TMP0 == 'a' || TMP0 == '('   # (lp1
-                math NAMES = 0  # skip the first string
-            endif
-        endif
-    next
-
+	get FSIZE asize 1
+	clog MEMORY_FILE 0 FSIZE FSIZE 1
+	get FSIZE asize MEMORY_FILE
+	for i = 0
+		savepos TMP MEMORY_FILE
+		if TMP >= FSIZE
+			break
+		endif
+		get TMP line MEMORY_FILE
+		getvarchr TMP0 TMP 0
+		if NAMES >= 0
+			if TMP0 == 'S' || TMP0 == 's'
+				if TMP0 == 'S'
+					string TMP << 2
+				else
+					string TMP << 3
+				endif
+				string TMP - 1
+				if i & 1
+					string TMP2 x TMP
+					set TMP string "_"
+					for x = 0 < 16
+						getvarchr TMP3 TMP2 x
+						string TMP3 p "%02X" TMP3
+						string TMP + TMP3
+					next x
+					putarray 10 NAMES TMP
+					math NAMES + 1
+				else
+					putarray 11 NAMES TMP
+				endif
+				math i + 1
+			endif
+		else
+			if TMP0 == 'a' || TMP0 == '('	# (lp1
+				math NAMES = 0		# skip the first string
+			endif
+		endif
+	next
 else
+	# name.npk.map
+	string TMP p "%s.map" EXT
+	open FDDE TMP 1 EXISTS
+	if EXISTS != 0
+		math NAMES_METHOD = 1
+		get MAP_SIZE asize 1
+		for OFFSET = 0 != MAP_SIZE
+			get TMP line 1
 
-    string TMP p "%s.map" EXT
-    open FDDE TMP 1 EXISTS
-    if EXISTS != 0
-        math NAMES_METHOD = 1
-        get MAP_SIZE asize 1
-        for OFFSET = 0 != MAP_SIZE
-            get TMP line 1
+			# weird thing in a game
+			# ^ note by aluigi
+			string TMP - "id:"
+			string TMP - "compress size:"
+			string TMP - "compress hash:"
+			string TMP - "uncompress size:"
+			string TMP - "uncompress hash:"
+			string TMP - "pos:"
 
-            # weird thing in a game
-            string TMP - "id:"
-            string TMP - "compress size:"
-            string TMP - "compress hash:"
-            string TMP - "uncompress size:"
-            string TMP - "uncompress hash:"
-            string TMP - "pos:"
-
-            string ELEMENTS S TMP NAME NAME_CRC ZSIZE ZCRC SIZE CRC OFFSET
-            putarray 10 NAMES NAME_CRC
-            putarray 11 NAMES NAME
-            math NAMES + 1
-            savepos OFFSET 1
-        next
-    endif
-
+			string ELEMENTS S TMP NAME NAME_CRC ZSIZE ZCRC SIZE CRC OFFSET
+			putarray 10 NAMES NAME_CRC
+			putarray 11 NAMES NAME
+			math NAMES + 1
+			savepos OFFSET 1
+		next
+	endif
 endif
 
+# DEBUG
 /*
-# debug
 for x = 0 < NAMES
-    getarray HASH 10 x
-    getarray NAME 11 x
-    print "%HASH% %NAME%"
+	getarray HASH 10 x
+	getarray NAME 11 x
+	print "%HASH% %NAME%"
 next x
 */
 
-set KEY string ""
-for x = 0 < 0x100
-    xmath TMP "x - 2"
-    putvarchr KEY x TMP
-next x
+/**************************************************************************************************/
+/* Extraction Process */
+/**************************************************************************************************/
 
-idstring "NXPK"
-get FILES long
-get VER1 long
-get VER2 long
-get VER3 long
-math MODE = 0
-if VER1 >= 1 && VER3 > 1
-    math MODE = 1
-endif
-math INFO_SIZE = 0x1c
-if MODE != 0
-    math INFO_SIZE = 0x28
-endif
-get OFFSET long
+endian little
+idstring "NXPK"	# Magic
+get FILES  u32	# File Count
+get VER1   u32	# ???
+get VER2   u32	# ???
+get VER3   u32	# ???
+get tabOFF u32	# Table Offset
 
-# if I used this work-around it means it was necessary in a sample, don't know what sample...
-get NXPK_SIZE asize
-if OFFSET u> NXPK_SIZE
-    xmath OFFSET "NXPK_SIZE - (FILES * INFO_SIZE)"
+# DO NOT USE `ARG#` AS VAR NAMES
+set Q1 string QuickBMS_arg1
+
+# arg validation
+if Q1 == "0" || Q1 == "1"
+	set tmp 1
+elif Q1 == "2"
+	set tmp 1
+else
+	set tmp 0
 endif
 
-goto OFFSET
+# Prompt
+if tmp == 0
+	# prompt user
+	print " "
+	print "= Select a number for a supported game ================================================================================"
+	print "  0 - FORCE"
+	print "  1 - Identity V"
+	print "  2 - Onmyoji"
+	set PROMPT ? ?	# prompt user for string
+else
+	# skip prompt
+	set PROMPT string Q1
+endif
+
+if PROMPT == "0"
+	set gNUM   0
+	set tabVER 0
+	set recLEN 28
+elif PROMPT == "1"
+	set gNUM   1
+	set tabVER 0
+	set recLEN 28
+elif PROMPT == "2"
+	set gNUM   2
+	set tabVER 1
+	set recLEN 32
+else
+	print " "
+	print "PANIC: Unsupported User Response (%PROMPT%)"
+	exit
+endif
+
+set arcERR 0 # exit if 1
+if gNUM == 0
+	# no check
+elif gNUM == 1
+	# no check, it should be fine
+elif gNUM == 2
+	# no check, it should be fine
+endif
+if arcERR == 1
+	print " "
+	print "PANIC: Unsupported Archive Format (%VER1%-%VER2%-%VER3%)"
+	exit
+endif
+
+# check offset validity; if out-of-bounds, override offset
+# may remove later
+get arcLEN asize	# Archive Size
+if tabOFF u> arcLEN
+	xmath tabLEN "FILES * recLEN"
+	xmath tabOFF "arcLEN - tabLEN"
+	print "INFO: Overriding out-of-bounds Table Offset"
+endif
+
+goto tabOFF
+
+print " "
+print "  offset   filesize   filename"
+print "--------------------------------------"
+
+# File Extraction Loop
 for i = 0 < FILES
-    get NAME_CRC long
-    get OFFSET long
-    get ZSIZE long
-    get SIZE long
-    get ZCRC long
-    get CRC long
-    if MODE != 0
-        get DUMMY long
-        get DUMMY long
-        get FLAGS long
-        get DUMMY long
-    else
-        get FLAGS long
-    endif
-    xmath ZFLAGS "FLAGS & 0xffff"
-    xmath FLAGS  "FLAGS >> 16"
-    if ZFLAGS == 2
-        comtype lz4
-    else    # 0
-        comtype zlib
-    endif
+	if tabVER == 0
+		get nSUM u32	# File Name Hash/Checksum
+		get pOFF u32	# File Data Packed Offset
+		get pLEN u32	# File Data Packed Size
+		get rLEN u32	# File Data Raw Size
+		get pSUM u32	# File Data Packed Hash/Checksum
+		get rSUM u32	# File Data Raw Hash/Checksum
+		get zVER u16	# File Data Compression Mode
+		get xVER u16	# File Data Encryption Mode
+	elif tabVER == 1
+		# ??? get nSUM u64
+		get nSUM u32	# File Name Hash/Checksum???
+		get idk  u32	# File Name Hash/Checksum???
+		get pOFF u32	# File Data Packed Offset
+		get pLEN u32	# File Data Packed Size
+		get rLEN u32	# File Data Raw Size
+		get pSUM u32	# File Data Packed Hash/Checksum
+		get rSUM u32	# File Data Raw Hash/Checksum
+		get zVER u16	# File Data Compression Mode
+		get xVER u16	# File Data Encryption Mode
+	endif
+	set fNUM 0
+	set zERR 0	# dump data if 1
+	set xERR 0	# dump data if 1
+	set NAME string ""
 
-    set NAME string ""
-    if NAMES > 0
-        if NAMES_METHOD == 0
-            encryption md5 ""
-            log MEMORY_FILE OFFSET ZSIZE
-            encryption "" ""
-            string QUICKBMS_HEXHASH p "_%s" QUICKBMS_HEXHASH  # LAME BUGFIX FOR QUICKBMS!!!
-        else
-            math QUICKBMS_HEXHASH = NAME_CRC
-        endif
-        for x = 0 < NAMES
-            getarray TMP 10 x
-            if TMP == QUICKBMS_HEXHASH
-                getarray NAME 11 x
-                putarray 10 x ""
-                math x = NAMES # break
-            endif
-        next x
-    endif
+	# UNVERIFIED
+	# Original File Name
+	if NAMES > 0
+		if NAMES_METHOD == 0
+			encryption md5 ""
+			log MEMORY_FILE pOFF pLEN
+			encryption "" ""
+			string QUICKBMS_HEXHASH p "_%s" QUICKBMS_HEXHASH	# LAME BUGFIX FOR QUICKBMS!!!
+			# ^ bugfix by aluigi; not sure if this bugfix is still required or even potentially detrimental
+		else
+			math QUICKBMS_HEXHASH = nSUM
+		endif
+		for x = 0 < NAMES
+			getarray tmp 10 x
+			if tmp == QUICKBMS_HEXHASH
+				getarray NAME 11 x
+				putarray 10 x ""
+				math x = NAMES	# break
+			endif
+		next x
+	endif
 
-    math FILENUM = 0
-    if FLAGS & 1
-        math TMP = 0x80
-        if TMP > ZSIZE
-            math TMP = ZSIZE
-        endif
-        encryption xor KEY "" 0 TMP
-        log MEMORY_FILE OFFSET TMP
-        encryption "" ""
-        math OFFSET + TMP
-        xmath TMP "ZSIZE - TMP"
-        append
-        log MEMORY_FILE OFFSET TMP
-        append
-        math OFFSET = 0
-        math FILENUM = -1
-    endif
-    if SIZE == ZSIZE
-        log NAME OFFSET SIZE FILENUM
-    else
-        clog NAME OFFSET ZSIZE SIZE FILENUM
-    endif
+	# Encryption
+	# may cause decompression crashes
+	if xVER == 0
+		# no encryption
+	elif xVER == 1
+		callfunction fnXOR_1 1
+	elif xVER == 2
+		callfunction fnXOR 1 nSUM rLEN nSUM rLEN
+	elif xVER == 3
+		callfunction fnXOR 1 rSUM rLEN rLEN rSUM
+	elif xVER == 4
+		callfunction fnXOR 1 rLEN rSUM rLEN rSUM
+	else
+		set xERR 1	# dump data
+	endif
 
-next i    
+	# Compression
+	# QuickBMS Limitation: Data CANNOT be decompressed into a MEMORY_FILE.
+	if zVER == 0
+		# no compression
+	elif zVER == 1
+		comtype zlib
+	elif zVER == 2
+		comtype lz4
+	else
+		set zERR 1	# dump data
+	endif
+
+	# Makeshift File Name
+	# TODO: add leading zeros (10 digits)
+	if NAMES < 0
+		if xERR == 1
+			string NAME P "%i%.z-%zVER%.x-%xVER%"
+		else
+			if zERR == 1
+				string NAME P "%i%.z-%zVER%"
+			else
+				# let QuickBMS guess
+				string NAME P "%i%."
+			endif
+		endif
+	endif
+
+	# Extraction
+	if xERR == 1 || zERR == 1
+		# dump
+		log NAME pOFF pLEN fNUM
+	else
+		if zVER == 0
+			log NAME pOFF pLEN fNUM
+		else
+			clog NAME pOFF pLEN rLEN fNUM
+		endif
+	endif
+next i
+
+print "- %FILES% files expected"
+cleanexit
+
+/**************************************************************************************************/
+/* Functions */
+/**************************************************************************************************/
+
+startfunction fnXOR_1
+	# pOFF, pLEN, fNUM
+
+	# only the first 128 bytes get xor'd
+	if pLEN > 0x80
+		set xOFF 0
+		set xLEN 0x80
+	else
+		set xOFF 0
+		set xLEN pLEN
+	endif
+
+	# prev: 0xfe
+	set KEY 0x96
+	callfunction endXOR 1
+endfunction
+
+startfunction fnXOR
+	set A1 u32 fnXOR_arg1
+	set A2 u32 fnXOR_arg2
+	set A3 u32 fnXOR_arg3
+	set A4 u32 fnXOR_arg4
+	# pOFF, pLEN, fNUM
+
+	# only 32-127 bytes get xor'd
+	if pLEN > 0x80
+		xmath xOFF "(A1 >> 1) % (pLEN - 0x80)"
+		xmath xLEN "((A2 << 1) % 0x60) + 0x20"
+	else
+		set xOFF 0
+		set xLEN pLEN
+	endif
+
+	xmath KEY "A3 ^ A4"
+	callfunction endXOR 1
+endfunction
+
+startfunction endXOR
+	# pOFF, pLEN, fNUM
+	# KEY, xOFF, xLEN
+	log MEMORY_FILE pOFF xOFF
+	math pOFF += xOFF
+	append
+	encryption "incremental xor8" KEY 0x01
+	log MEMORY_FILE pOFF xLEN
+	encryption "" ""
+	math pOFF += xLEN
+	xmath remLEN "pLEN - (xOFF + xLEN)"
+	log MEMORY_FILE pOFF remLEN
+	append
+
+	# export data from memory
+	set fNUM -1
+	set pOFF 0
+endfunction
