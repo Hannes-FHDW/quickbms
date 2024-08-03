@@ -2830,8 +2830,8 @@ int unlzhlib(unsigned char *in, int insz, unsigned char *out, int outsz) {
 *
 *    rle3.c
 *
-*      ƒ‰ƒ“ƒŒƒ“ƒOƒX•„†‰»‚ÌƒeƒXƒg
-*      ƒ‰ƒ“’·•”•ª‚ğƒ}[ƒN•„†‚Å¯•Ê‚·‚é
+*      ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Oï¿½Xï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ìƒeï¿½Xï¿½g
+*      ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½}ï¿½[ï¿½Nï¿½ï¿½ï¿½ï¿½ï¿½Åï¿½ï¿½Ê‚ï¿½ï¿½ï¿½
 *
 ***********************************************************/
 //int rl3_decode(unsigned char *out, unsigned char *in, int size) {
@@ -2846,7 +2846,7 @@ if(mch < 0) mch = 'Z';
 		int c = in[rpos++];
 		int i, le;
 		if (c == mch) {
-			/* ƒ‰ƒ“’·‚ğ“ü—Í */
+			/* ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ */
 			le = in[rpos++];
 			if (le >= LIMIT1) {
 				le = ((le - LIMIT1) << 8) + in[rpos++] + LIMIT1;
@@ -4436,7 +4436,7 @@ int rtldecompress(int type, u8 *in, int insz, u8 *out, int outsz) {
 
 
 
-// code by MrAdults (Señor Casaroja's Noesis)
+// code by MrAdults (Seï¿½or Casaroja's Noesis)
 // http://forum.xentax.com/viewtopic.php?p=52279#p52279
 int Model_GMI_Decompress(unsigned char *src, int srcLen, unsigned char *dst, int dstLen)
 {
@@ -4745,49 +4745,49 @@ int unlzlib(u8 *in, int insz, u8 *out, int outsz) {
 int lzs_unzip(u8 *datapart, int Size_DataPart, u8 *dictionarypart, int dictionarypart_Length, u8 *b_unzip, int size_unzip, int bits) {
     const int THRESHOLD = 2;
     int i, f;
-                int i_out = 0, i_data = 0, i_dic = 0; //ÏÂÖ¸±E
+                int i_out = 0, i_data = 0, i_dic = 0; //ï¿½ï¿½Ö¸ï¿½ï¿½E
                 byte c;
-                UInt16 flags; //±E¾£¬¶ş½øÖÆµÄ16Î»´ÓÓÒµ½×ó±úæ¾½ÓÏÂÀ´µÄ16×éÊı¾İÊÇ·ñÎªÑ¹Ëõ¸ñÊ½(1²»Ñ¹Ëõ£¬0Ñ¹ËE
+                UInt16 flags; //ï¿½ï¿½Eï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Æµï¿½16Î»ï¿½ï¿½ï¿½Òµï¿½ï¿½ï¿½ï¿½æ¾½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½16ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ç·ï¿½ÎªÑ¹ï¿½ï¿½ï¿½ï¿½Ê½(1ï¿½ï¿½Ñ¹ï¿½ï¿½ï¿½ï¿½0Ñ¹ËE
 
                 flags = 0;
                 for (; ; )
                 {
-                    if (i_data == Size_DataPart)  //Ê×ÏÈ,¶ÁÈE½×Ö½Úµ½flags
+                    if (i_data == Size_DataPart)  //ï¿½ï¿½ï¿½ï¿½,ï¿½ï¿½ÈEï¿½ï¿½Ö½Úµï¿½flags
                         break;
-                    flags = datapart[i_data++];  //ÏÈ¶ÁÈEÄÔÚµÍ8Î»
+                    flags = datapart[i_data++];  //ï¿½È¶ï¿½ÈEï¿½ï¿½Úµï¿½8Î»
                     if (i_data == Size_DataPart)
                         break;
-                    flags |= (UInt16)(datapart[i_data++] << 8); //ºó¶ÁÈEÄÔÚ¸ß8Î»
+                    flags |= (UInt16)(datapart[i_data++] << 8); //ï¿½ï¿½ï¿½ÈEï¿½ï¿½Ú¸ï¿½8Î»
                     if(g_endian == MYBIG_ENDIAN) flags = htons(flags);
 
-                    for ( f = 0; f < 16; f++) {  //½øĞĞ16´Î¶ÁÈ¡Êı¾İµÄ²Ù×E
-                        if (((flags >> f) & 1) != 0)   //flagµÄÓÒÆğµÚfÎ»Îª1,±úæ¾½ÓÏÂÀ´µÄÊÇ·ÇÑ¹ËõÊı¾İ
+                    for ( f = 0; f < 16; f++) {  //ï¿½ï¿½ï¿½ï¿½16ï¿½Î¶ï¿½È¡ï¿½ï¿½ï¿½İµÄ²ï¿½×E
+                        if (((flags >> f) & 1) != 0)   //flagï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½fÎ»Îª1,ï¿½ï¿½æ¾½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ç·ï¿½Ñ¹ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
                         {
                             if (i_dic == dictionarypart_Length)
                                 break;
                             c = dictionarypart[i_dic++];
                             if(i_out >= size_unzip) quickbms_unz_output_overflow;
-                            b_unzip[i_out++] = c;  //ÄÇÃ´Ö±½Ó´Ó×Öµä¶Î¶ÁÈ¡Ò»×Ö½Úµ½ Êä³öÊı×E
+                            b_unzip[i_out++] = c;  //ï¿½ï¿½Ã´Ö±ï¿½Ó´ï¿½ï¿½Öµï¿½Î¶ï¿½È¡Ò»ï¿½Ö½Úµï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½×E
                         }
-                        else     //flagµÄÓÒÆğµÚfÎ»Îª0,±úæ¾½ÓÏÂÀ´µÄÊÇÑ¹ËõÊı¾İ
+                        else     //flagï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½fÎ»Îª0,ï¿½ï¿½æ¾½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ñ¹ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
                         {
                             if (i_data == Size_DataPart)
                                 break;
                             UInt16 t = datapart[i_data++];
                             if (i_data == Size_DataPart)
                                 break;
-                            t |= (UInt16)(datapart[i_data++] << 8);  //¶ÁÈ¡Á½×Ö½Úµ½t(¸úflagsÒ»ÑEÏÈ¶ÁÈEÄÔÚµÍ8Î»)
+                            t |= (UInt16)(datapart[i_data++] << 8);  //ï¿½ï¿½È¡ï¿½ï¿½ï¿½Ö½Úµï¿½t(ï¿½ï¿½flagsÒ»ÑEï¿½È¶ï¿½ÈEï¿½ï¿½Úµï¿½8Î»)
                             if(g_endian == MYBIG_ENDIAN) t = htons(t);
 
-                            int size = (int)(t & ((1<<bits)-1)) + THRESHOLD;  //tµÄºEÎ» + THRESHOLD Îª³¤¶È
-                            int offset = (int)(t >> bits);  //tµÄÇ°11ÎªÎª¾àÀE
+                            int size = (int)(t & ((1<<bits)-1)) + THRESHOLD;  //tï¿½Äºï¿½EÎ» + THRESHOLD Îªï¿½ï¿½ï¿½ï¿½
+                            int offset = (int)(t >> bits);  //tï¿½ï¿½Ç°11ÎªÎªï¿½ï¿½ï¿½ï¿½E
 
-                            for ( i = 0; i < size; i++, i_out++) {  //´Ó Êä³öÊı×éµÄ µ±Ç°Î»ÖÃ - offset ¿ªÊ¼,¶ÁÈ¡size¸ö×Ö½Úµ½Êä³öÊı×E
+                            for ( i = 0; i < size; i++, i_out++) {  //ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½Ç°Î»ï¿½ï¿½ - offset ï¿½ï¿½Ê¼,ï¿½ï¿½È¡sizeï¿½ï¿½ï¿½Ö½Úµï¿½ï¿½ï¿½ï¿½ï¿½ï¿½×E
                                 if(i_out >= size_unzip) quickbms_unz_output_overflow;
-                                b_unzip[i_out] = b_unzip[i_out - offset]; //´Ë¹ı³Ì±ØĞE»¸ö×Ö½ÚÒ»¸ö×Ö½ÚµÄ½øĞĞ
+                                b_unzip[i_out] = b_unzip[i_out - offset]; //ï¿½Ë¹ï¿½ï¿½Ì±ï¿½ĞEï¿½ï¿½ï¿½ï¿½Ö½ï¿½Ò»ï¿½ï¿½ï¿½Ö½ÚµÄ½ï¿½ï¿½ï¿½
                             }
 
-                        } //Ñ­»·½áÊøµÄÌõ¼şÎª data¶Î¶ÁÍEóÔÙ´ÎÊÕµ½¶ÁÈ¡data¶ÎµÄÇEE
+                        } //Ñ­ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Îª dataï¿½Î¶ï¿½ÍEï¿½ï¿½Ù´ï¿½ï¿½Õµï¿½ï¿½ï¿½È¡dataï¿½Îµï¿½ÇEï¿½E
                     }
                 }
     return i_out;
@@ -5942,7 +5942,7 @@ int mybase64_encode(u8 *data, int len, u8 *buff, int buffsz, int line_feed) {
     }
 #endif
         #if defined(__i386__) || defined(__x86_64__)
-        #ifndef __APPLE__
+        #if !defined(__APPLE__) && defined(__INCLUDE_AMIGASTUFF__)
 extern int UnSquash(unsigned char *, int);// __asm__("UnSquash");
 int amiga_unsquash(unsigned char *in, int insz, unsigned char *out) {
     int     i;
@@ -6193,16 +6193,16 @@ int bpe_alt1_decode_buf(int bfs, int isize, unsigned char *workbuf, unsigned cha
     int i, ch, c2, pts;
 
 	int wpos = 0, spos = 0;
-	unsigned char stackbuf[256], stackhead = 0;  /* ƒfƒR[ƒh—pƒXƒ^ƒbƒN */
+	unsigned char stackbuf[256], stackhead = 0;  /* ï¿½fï¿½Rï¿½[ï¿½hï¿½pï¿½Xï¿½^ï¿½bï¿½N */
 
         unsigned char  pairtable1[256];
         unsigned char  pairtable2[256];
-		/* ƒyƒA•\‚ğ‰Šú‰» */
+		/* ï¿½yï¿½Aï¿½\ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ */
 		for (i = 0; i < 256; i++) {
 			pairtable1[i] = i;
 		}
 		if (typ) {
-			/* ƒyƒA•\‚Ì“Ç */
+			/* ï¿½yï¿½Aï¿½\ï¿½Ì“Çï¿½ */
 			if ((pts = workbuf[wpos++]) < 0)  return -1; //error("Input data error 2");
 			for (i = 0; i < pts; i++) {
 				if ((ch = workbuf[wpos++]) < 0)  return -1; //error("Input data error 2");
@@ -6217,22 +6217,22 @@ int bpe_alt1_decode_buf(int bfs, int isize, unsigned char *workbuf, unsigned cha
 	{
 		unsigned char ch;
 		if (!stackhead) {
-			/* ƒXƒ^ƒbƒN‚ª‹ó‚ÌAƒf[ƒ^‚©‚ç1Byte“Ç */
+			/* ï¿½Xï¿½^ï¿½bï¿½Nï¿½ï¿½ï¿½ï¿½Ìï¿½ï¿½Aï¿½fï¿½[ï¿½^ï¿½ï¿½ï¿½ï¿½1Byteï¿½Çï¿½ */
 			ch = workbuf[wpos++];
 		} else {
-			/* ƒXƒ^ƒbƒN‚©‚ç1Byte“Ç */
+			/* ï¿½Xï¿½^ï¿½bï¿½Nï¿½ï¿½ï¿½ï¿½1Byteï¿½Çï¿½ */
 			ch = stackbuf[--stackhead];
 		}
 
 		while (1) {
-			/* ƒyƒA•\‚©‚ç•¶š‚ğ“¾‚é */
+			/* ï¿½yï¿½Aï¿½\ï¿½ï¿½ï¿½ç•¶ï¿½ï¿½ï¿½ğ“¾‚ï¿½ */
 			if (ch == pairtable1[ch]) {
-				/* ƒf[ƒ^‚ğ‚»‚Ì‚Ü‚Ü1Byte‘ */
+				/* ï¿½fï¿½[ï¿½^ï¿½ï¿½ï¿½ï¿½ï¿½Ì‚Ü‚ï¿½1Byteï¿½ï¿½ï¿½ï¿½ */
 				if (spos >= bfs)  return -1; //error("Buffer overflow");
 				srcbuf[spos++] = ch;
 				break;
 			}
-			/* ƒf[ƒ^‚ğƒXƒ^ƒbƒN‚Ö“ü‚ê‚é */
+			/* ï¿½fï¿½[ï¿½^ï¿½ï¿½ï¿½Xï¿½^ï¿½bï¿½Nï¿½Ö“ï¿½ï¿½ï¿½ï¿½ */
 			stackbuf[stackhead++] = pairtable2[ch];
 			ch = pairtable1[ch];
 		}
@@ -6245,7 +6245,7 @@ int bpe_alt1_decode_buf(int bfs, int isize, unsigned char *workbuf, unsigned cha
 // http://izaya.blog38.fc2.com/blog-entry-374.html
 /**
   @file   CBPE.cpp
-  @brief  BPEˆ³kÀ‘•ƒtƒ@ƒCƒ‹
+  @brief  BPEï¿½ï¿½ï¿½kï¿½ï¿½ï¿½ï¿½ï¿½tï¿½@ï¿½Cï¿½ï¿½
   @author IZAYA
   @data   090825 1st Release
 */
@@ -10971,7 +10971,7 @@ int Wangan_DecompressType5(byte* srcBuffer, byte* outBuffer, uint decmpSize)
         short cmpFlag;//0xC
         short processedCountFlag;//0xE
         short curTempBuffRepeatOffset;//0x10
-        short curTempBuffOffset;//0x12  İ??Type==5?¥ñ˜¢10š??“I˜a
+        short curTempBuffOffset;//0x12  ï¿½ï¿½??Type==5?ï¿½ï¿½ï¿½ï¿½10ï¿½ï¿½??ï¿½Iï¿½a
         byte temp16Buffer[16];//0x14
         byte temp256Buffer[256];//0x14
         ushort temp512Buffer[256];//0x124
