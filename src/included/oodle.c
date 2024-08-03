@@ -184,7 +184,7 @@ int myOodle_Init(void) {
 
 #else
 
-    #if defined(i386) || defined(IA64)
+    #if defined(i386) || defined(__x86_64__)
 
         // requires -msse2 to build
 
