@@ -57,12 +57,12 @@
 #include <stdarg.h>
 #include <stdint.h>
 
-
+#include <inttypes.h>
 
 // 32bit registers
 // this is a project for reverse engineering stuff so I want to support
 // the 32bit dumped code on both x86 and x86_64
-#if defined(i386) || defined(IA64)
+#if defined(i386)
 
     #define CALLCONV_INIT   va_list ap; \
                             long    i, \
@@ -321,7 +321,278 @@
         return(ret);
     }
 
+#elif defined(__x86_64__)
 
+/*
+    this is an attempt to create 64-bit versions
+    of the above 32-bit code. it seems there may
+    have been some confusion about the `IA64`
+    pre-processor define, and so when this header was
+    updated to correctly check for `x86_64` there
+    were obvious compiler errors because of the use
+    of 32-bit specific instructions/semantics.
+
+    this code is just a brute-force rework of 32bit->64bit
+    argument types and related instructions, i have
+    no idea what aluigi was doing to verify this code
+    since there doesn't appear to be any tests.
+*/
+
+    #define CALLCONV_INIT   va_list ap; \
+                            __cc_int_t i, ret, argv[argc]; \
+                            \
+                            va_start(ap, argc); \
+                            for(i = 0; i < argc; i++) { \
+                                argv[i] = va_arg(ap, __cc_int_t); \
+                            } \
+                            va_end(ap);
+    #define CALLCONV_ASM    __asm__ __volatile__ 
+
+    #define __cc_int_t int64_t
+    #define CALLCONV_EBX    ,"%rbx" // clobbered
+    #define CALLCONV_EDI    ,"%rdi" // constraint
+    #define CALLCONV_ESI    ,"%rsi" // constraint
+    #define CALLCONV_CONSTRAINTS
+    #if __PIC__ // both -fpic and -fPIC
+        #define CALLCONV_EBX  // "error: PIC register clobbered by '%ebx' in 'asm'"
+        #ifndef WIN32   // it works on Linux only with -O0
+            #define CALLCONV_EDI
+            #define CALLCONV_ESI
+            #undef  CALLCONV_CONSTRAINTS
+        #endif
+    #endif
+
+
+    // too complex, not implemented yet:
+    // http://blogs.msdn.com/b/vcblog/archive/2013/07/12/introducing-vector-calling-convention.aspx
+    // long vectorcall_call(void *func, long argc, ...);
+
+
+
+    // this is just an experiment
+    // the first argument is the register to return, the next 6 arguments are assigned to the registers
+    // and then there are the stack arguments. so remember that argc does not correspond to the real
+    // number of arguments, if you have only one stack argument you must have argc set to 1 + 6 + 1 and 1 + 6
+    // NULL arguments before your one
+    __cc_int_t usercall_call(void *func, __cc_int_t argc, ...) {
+        CALLCONV_INIT
+
+        __cc_int_t ret_type = -1;  // from 0 to 5 for covering the 6 registers, -1 for void
+
+        if(argc > 0) ret_type = argv[0];
+
+        __cc_int_t tmp_argc = argc - (1 + 6);
+        for(i = tmp_argc - 1; i >= 0; i--) {    // right->left
+            CALLCONV_ASM("push %0" :: "g"(argv[1 + 6 + i]));
+        }
+
+        // rax rcx rdx rbx rsi rdi
+#ifdef CALLCONV_CONSTRAINTS
+        if(argc > 6) CALLCONV_ASM("mov %0, %%rdi" :: "g"(argv[6]) : "%rax", "%rcx", "%rdx" CALLCONV_EBX CALLCONV_ESI             );
+        if(argc > 5) CALLCONV_ASM("mov %0, %%rsi" :: "g"(argv[5]) : "%rax", "%rcx", "%rdx" CALLCONV_EBX              CALLCONV_EDI);
+#endif
+        if(argc > 4) CALLCONV_ASM("mov %0, %%rbx" :: "g"(argv[4]) : "%rax", "%rcx", "%rdx"              CALLCONV_ESI CALLCONV_EDI);
+        if(argc > 3) CALLCONV_ASM("mov %0, %%rdx" :: "g"(argv[3]) : "%rax", "%rcx"         CALLCONV_EBX CALLCONV_ESI CALLCONV_EDI);
+        if(argc > 2) CALLCONV_ASM("mov %0, %%rcx" :: "g"(argv[2]) : "%rax",         "%rdx" CALLCONV_EBX CALLCONV_ESI CALLCONV_EDI);
+        if(argc > 1) CALLCONV_ASM("mov %0, %%rax" :: "g"(argv[1]) :         "%rcx", "%rdx" CALLCONV_EBX CALLCONV_ESI CALLCONV_EDI);
+
+                     CALLCONV_ASM("call *%0"       :: "g"(func)    : "%rax", "%rcx", "%rdx" CALLCONV_EBX CALLCONV_ESI CALLCONV_EDI);
+
+        switch(ret_type) {
+            case 0: CALLCONV_ASM("mov %%rax, %0" : "=g"(ret)); break;
+            case 1: CALLCONV_ASM("mov %%rcx, %0" : "=g"(ret)); break;
+            case 2: CALLCONV_ASM("mov %%rdx, %0" : "=g"(ret)); break;
+            case 3: CALLCONV_ASM("mov %%rbx, %0" : "=g"(ret)); break;
+            case 4: CALLCONV_ASM("mov %%rsi, %0" : "=g"(ret)); break;
+            case 5: CALLCONV_ASM("mov %%rdi, %0" : "=g"(ret)); break;
+            default: ret = 0; break;
+        }
+        return(ret);
+    }
+
+
+
+    __cc_int_t cdecl_call(void *func, __cc_int_t argc, ...) {
+        CALLCONV_INIT
+
+        for(i = argc - 1; i >= 0; i--) {    // right->left
+            CALLCONV_ASM("push %0" :: "g"(argv[i]));
+        }
+
+        CALLCONV_ASM("call *%0" :: "g"(func));
+        CALLCONV_ASM("add %0, %%rsp" :: "g"(argc * 4));
+        CALLCONV_ASM("mov %%rax, %0" : "=g"(ret));
+        return(ret);
+    }
+
+
+
+    __cc_int_t stdcall_call(void *func, __cc_int_t argc, ...) {
+        CALLCONV_INIT
+
+        for(i = argc - 1; i >= 0; i--) {    // right->left
+            CALLCONV_ASM("push %0" :: "g"(argv[i]));
+        }
+
+        CALLCONV_ASM("call *%0" :: "g"(func));
+        CALLCONV_ASM("mov %%rax, %0" : "=g"(ret));
+        return(ret);
+    }
+
+
+
+    __cc_int_t thiscall_call(void *func, __cc_int_t argc, ...) {
+        CALLCONV_INIT
+
+        for(i = argc - 1; i >= 1; i--) {    // right->left
+            CALLCONV_ASM("push %0" :: "g"(argv[i]));
+        }
+        if(argc > 0) CALLCONV_ASM("mov %0, %%rcx" :: "g"(argv[0]));
+
+        CALLCONV_ASM("call *%0" :: "g"(func) : "%ecx");
+        CALLCONV_ASM("mov %%rax, %0" : "=g"(ret));
+        return(ret);
+    }
+
+
+
+    __cc_int_t msfastcall_call(void *func, __cc_int_t argc, ...) {
+        CALLCONV_INIT
+
+        for(i = argc - 1; i >= 2; i--) {    // right->left
+            CALLCONV_ASM("push %0" :: "g"(argv[i]));
+        }
+        if(argc > 1) CALLCONV_ASM("mov %0, %%rdx" :: "g"(argv[1]) : "%rcx"       );
+        if(argc > 0) CALLCONV_ASM("mov %0, %%rcx" :: "g"(argv[0]) :        "%rdx");
+
+        CALLCONV_ASM("call *%0" :: "g"(func) : "%rcx","%rdx");
+        CALLCONV_ASM("mov %%rax, %0" : "=g"(ret));
+        return(ret);
+    }
+
+
+
+    // borland, delphi, register
+    __cc_int_t borland_call(void *func, __cc_int_t argc, ...) {
+        CALLCONV_INIT
+
+        for(i = 3; i < argc; i++) { // left->right
+            CALLCONV_ASM("push %0" :: "g"(argv[i]));
+        }
+        if(argc > 2) CALLCONV_ASM("mov %0, %%rcx" :: "g"(argv[2]) : "%rax","%rdx"       );
+        if(argc > 1) CALLCONV_ASM("mov %0, %%rdx" :: "g"(argv[1]) : "%rax",       "%rcx");
+        if(argc > 0) CALLCONV_ASM("mov %0, %%rax" :: "g"(argv[0]) :        "%rdx","%rcx");
+
+        CALLCONV_ASM("call *%0" :: "g"(func) : "%rax","%rdx","%rcx");
+        CALLCONV_ASM("mov %%rax, %0" : "=g"(ret));
+        return(ret);
+    }
+
+
+
+    __cc_int_t pascal_call(void *func, __cc_int_t argc, ...) {
+        CALLCONV_INIT
+
+        for(i = 0; i < argc; i++) { // left->right
+            CALLCONV_ASM("push %0" :: "g"(argv[i]));
+        }
+
+        CALLCONV_ASM("call *%0" :: "g"(func));
+        CALLCONV_ASM("mov %%rax, %0" : "=g"(ret));
+        return(ret);
+    }
+
+
+
+    __cc_int_t watcom_call(void *func, __cc_int_t argc, ...) {
+        CALLCONV_INIT
+
+        for(i = argc - 1; i >= 4; i--) {    // right->left
+            CALLCONV_ASM("push %0" :: "g"(argv[i]));
+        }
+
+        if(argc > 3) CALLCONV_ASM("mov %0, %%rcx" :: "g"(argv[3]) : "%rax","%rdx"        CALLCONV_EBX);
+        if(argc > 2) CALLCONV_ASM("mov %0, %%rbx" :: "g"(argv[2]) : "%rax","%rdx","%rcx"             );
+        if(argc > 1) CALLCONV_ASM("mov %0, %%rdx" :: "g"(argv[1]) : "%rax"       ,"%rcx" CALLCONV_EBX);
+        if(argc > 0) CALLCONV_ASM("mov %0, %%rax" :: "g"(argv[0]) :        "%rdx","%rcx" CALLCONV_EBX);
+
+        CALLCONV_ASM("call *%0" :: "g"(func) : "%rax","%rdx","%rcx" CALLCONV_EBX);
+        CALLCONV_ASM("mov %%rax, %0" : "=g"(ret));
+        return(ret);
+    }
+
+
+
+    __cc_int_t safecall_call(void *func, __cc_int_t argc, ...) {
+        CALLCONV_INIT
+
+        ret = 0;
+        CALLCONV_ASM("push %0" :: "g"(&ret));
+
+        for(i = argc - 1; i >= 0; i--) {    // right->left
+            CALLCONV_ASM("push %0" :: "g"(argv[i]));
+        }
+
+        CALLCONV_ASM("call *%0" :: "g"(func));
+        // eax is 0 if all ok or another value in case of exceptions
+        return(ret);
+    }
+
+
+
+    __cc_int_t syscall_call(void *func, __cc_int_t argc, ...) {
+        CALLCONV_INIT
+
+        for(i = argc - 1; i >= 0; i--) {    // right->left
+            CALLCONV_ASM("push %0" :: "g"(argv[i]));
+        }
+
+        CALLCONV_ASM("mov %0, %%rax" :: "g"(argc)); // from Wikipedia but it looks false
+        CALLCONV_ASM("call *%0" :: "g"(func) : "%rax");  // note that is not clear the thing of
+        CALLCONV_ASM("add %0, %%rsp" :: "g"(argc * 4));
+        CALLCONV_ASM("mov %%rax, %0" : "=g"(ret));      // preservation but should be ok like in cdecl
+        return(ret);
+    }
+
+
+
+    // optlink, visualage
+    __cc_int_t optlink_call(void *func, __cc_int_t argc, ...) {
+        CALLCONV_INIT
+
+        for(i = argc - 1; i >= 3; i--) {    // right->left
+            CALLCONV_ASM("push %0" :: "g"(argv[i]));
+        }
+        if(argc > 2) CALLCONV_ASM("mov %0, %%rcx" :: "g"(argv[2]) : "%rax","%rdx"       );
+        if(argc > 1) CALLCONV_ASM("mov %0, %%rdx" :: "g"(argv[1]) : "%rax",       "%rcx");
+        if(argc > 0) CALLCONV_ASM("mov %0, %%rax" :: "g"(argv[0]) :        "%rdx","%rcx");
+
+        CALLCONV_ASM("call *%0" :: "g"(func) : "%rax","%rdx","%rcx");
+        CALLCONV_ASM("add %0, %%rsp" :: "g"(argc * 4));
+        CALLCONV_ASM("mov %%rax, %0" : "=g"(ret));
+        return(ret);
+    }
+
+
+
+    // clarion, TopSpeed, JPI
+    __cc_int_t clarion_call(void *func, __cc_int_t argc, ...) {
+        CALLCONV_INIT
+
+        for(i = 4; i < argc; i++) { // left->right
+            CALLCONV_ASM("push %0" :: "g"(argv[i]));
+        }
+
+        if(argc > 3) CALLCONV_ASM("mov %0, %%rdx" :: "g"(argv[3]) : "%rax","%rcx"        CALLCONV_EBX);
+        if(argc > 2) CALLCONV_ASM("mov %0, %%rcx" :: "g"(argv[2]) : "%rax",       "%rdx" CALLCONV_EBX);
+        if(argc > 1) CALLCONV_ASM("mov %0, %%rbx" :: "g"(argv[1]) : "%rax","%rcx","%rdx"             );
+        if(argc > 0) CALLCONV_ASM("mov %0, %%rax" :: "g"(argv[0]) :        "%rcx","%rdx" CALLCONV_EBX);
+
+        CALLCONV_ASM("call *%0" :: "g"(func) : "%rax","%rcx","%rdx" CALLCONV_EBX);
+        CALLCONV_ASM("mov %%rax, %0" : "=g"(ret));
+        //CALLCONV_ASM("mov %%rdx, %0" : "=g"(ret));  // for pointers
+        return(ret);
+    }
 
 #else
 
