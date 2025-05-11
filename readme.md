@@ -46,10 +46,63 @@ make clean && make --jobs
 
 ### Will it run on Windows? macOS?
 
-i have only compiled on linux x86_64, but from what i have seen this code should cross-compile on Linux, macOS, and Windows operating systems targeting aarch64/arm64 and x86_64/amd64 processor architectures. but have i done it yet? no.
+i have only compiled on "linux x86_64", but from what i have seen this code "should" cross-compile on Linux, macOS, and Windows operating systems targeting aarch64/arm64 and x86_64/amd64 processor architectures. but have i done it yet? no.
+
+#### Build on Windows using WSL
+
+You should be able to build under WSL using the `Debian` distribution, this may be the quickest solution for Windows users, as you can see nearer the end of this section you can somewhat hide the use of WSL if you're trying to automate from a Windows script or similar:
+
+From Windows shell:
+
+```console
+wsl --install Debian -n
+```
+
+Then switch to the cloned repo from github, and enter the Debian container:
+
+```console
+cd C:\the\path\to\quickbms\
+wsl -d Debian
+```
+
+If it's the first run of the Linux container you should be prompted to set a username and password, set them to something you can remember, you may occasionally need them (such as for running `sudo`):
+
+From the Debian shell:
+
+```bash
+# update base packages, and install pre-reqs
+sudo apt-get update
+sudo apt-get upgrade -y
+sudo apt-get install -y build-essential zlib1g-dev liblzo2-dev libssl-dev unicode clang llvm lld lldb
+
+# run make
+make clean && make --jobs
+# optionally, install to a common path
+sudo make install
+```
+
+If you want to run it from Windows (CLI) without having to drop into WSL permanently..
+
+From Windows shell:
+
+(the path here needs to be changed to match where your repo was located)
+
+```console
+cd C:\the\path\to\quickbms\
+wsl --exec bin/quickbms --help
+```
+
+Or, if you did the optional `make install` step, you can avoid the need to use a specific path:
+
+```console
+wsl quickbms
+```
+
+Just keep in mind that the pathing from within Linux is different than Windows (your C drive is accessible from `/mnt/c/`, and all backslashes should be changed to forward slashes.)
+
 
 ----
 
-> The old from the github repository it was forked from can be found in [old_readme.md](old_readme.md).
+> The original readme from the repository this was forked from can be found in [old_readme.md](old_readme.md).
 
 ----
