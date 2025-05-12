@@ -84,7 +84,7 @@ DENSITY_FORCE_INLINE void density_chameleon_encode_256(const uint8_t **DENSITY_R
     uint_fast8_t count = 0, count_b;
 
 #ifdef __clang__
-    for (uint_fast8_t count_b = 0; count_b < 32; count_b++) {
+    for (count_b = 0; count_b < 32; count_b++) {
         DENSITY_UNROLL_2(density_chameleon_encode_4(in, out, count++, signature, dictionary, unit));
     }
 #else
