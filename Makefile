@@ -146,7 +146,7 @@ OBJS_LIBS += \
 endif
 
 CFLAGS	+= $(DEFINES) $(INCLUDE_DIRS)
-CCFLAGS += $(CFLAGS) -std=gnu89
+CCFLAGS += $(CFLAGS) -std=gnu89 -Wno-error=incompatible-function-pointer-types
 CXXFLAGS += $(CFLAGS) -std=gnu++17
 
 LDFLAGS += \
