@@ -146,7 +146,7 @@ OBJS_LIBS += \
 endif
 
 CFLAGS	+= $(DEFINES) $(INCLUDE_DIRS)
-CCFLAGS += $(CFLAGS) -std=gnu17
+CCFLAGS += $(CFLAGS) -std=gnu89
 CXXFLAGS += $(CFLAGS) -std=gnu++17
 
 LDFLAGS += \
