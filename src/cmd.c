@@ -7268,7 +7268,7 @@ int CMD_CallDLL_func(int cmd, u8 *input, int input_size, u8 *output, int output_
         CALLDLL_FUNC(stdcall)
     } else if(stristr(callconv, "cdecl") || !stricmp(callconv, "tcc")) { // thiscall on gcc
         CALLDLL_FUNC(cdecl)
-#if defined(i386) || defined(IA64)
+#if defined(i386) || defined(__x86_64__)
     } else if(stristr(callconv, "thiscall")) {
         CALLDLL_FUNC2(thiscall)
     } else if(stristr(callconv, "msfastcall")) {
@@ -7311,9 +7311,12 @@ int CMD_CallDLL_func(int cmd, u8 *input, int input_size, u8 *output, int output_
             if(argc > 0) {
                 pArgs = PyTuple_New(argc);
                 for(i = 0; i < argc; i++) {
-                         if(args_size[i] >= 0)  pValue = PyBuffer_FromReadWriteMemory(args[i], args_size[i]);
-                    else if(args_size[i] == -2) pValue = PyFloat_FromDouble(g_variable[args_idx[i]].float64);
-                    else                        pValue = PyLong_FromLongLong((int)args[i]);
+                    if(args_size[i] >= 0)
+                        pValue = PyBuffer_FromReadWriteMemory(args[i], args_size[i]);
+                    else if(args_size[i] == -2)
+                        pValue = PyFloat_FromDouble(g_variable[args_idx[i]].float64);
+                    else
+                        pValue = PyLong_FromLongLong((int)args[i]);
                     PyTuple_SetItem(pArgs, i, pValue);
                     if(pValue) Py_DECREF(pValue);
                 }
@@ -7328,31 +7331,39 @@ int CMD_CallDLL_func(int cmd, u8 *input, int input_size, u8 *output, int output_
             }
 
 #ifdef QUICKBMS64
-            PyErr_Clear();  ret = PyLong_AsLongLong(pValue);    if(PyErr_Occurred())
+            PyErr_Clear();
+            ret = PyLong_AsLongLong(pValue);
+            if(PyErr_Occurred())
 #endif
             {
-            PyErr_Clear();  ret = PyLong_AsLong(pValue);        if(PyErr_Occurred()) {
-            PyErr_Clear();  ret = PyInt_AsLong(pValue);         if(PyErr_Occurred()) {  // useless
+                PyErr_Clear();
+                ret = PyLong_AsLong(pValue);
+                if(PyErr_Occurred()) {
+                    PyErr_Clear();
+                    ret = PyInt_AsLong(pValue);
+                    if(PyErr_Occurred()) {  // useless
 
-            // the following float/double code works perfectly but PyLong_AsLong will work before it and NEVER put it before the others
-            PyErr_Clear();  double retd = PyFloat_AsDouble(pValue);
+                        // the following float/double code works perfectly but PyLong_AsLong will work before it and NEVER put it before the others
+                        PyErr_Clear();  double retd = PyFloat_AsDouble(pValue);
 #ifdef QUICKBMS64
-            ret = 0;                            memcpy(&ret, &retd, MIN(sizeof(ret), sizeof(retd)));
+                        ret = 0;
+                        memcpy(&ret, &retd, MIN(sizeof(ret), sizeof(retd)));
 #else
-            ret = 0;    float   retf = retd;    memcpy(&ret, &retf, MIN(sizeof(ret), sizeof(retf)));
+                        ret = 0;
+                        float retf = retd;
+                        memcpy(&ret, &retf, MIN(sizeof(ret), sizeof(retf)));
 #endif
-                                                                if(PyErr_Occurred()) {
+                        if(PyErr_Occurred()) {
+                            PyErr_Clear();
+                                ret = 0;
 
-            PyErr_Clear();
-                ret = 0;
+                                pTmp = PyByteArray_FromObject(pValue);
+                                if(pTmp) ret = (int)PyByteArray_AsString(pTmp);
 
-                pTmp = PyByteArray_FromObject(pValue);
-                if(pTmp) ret = (int)PyByteArray_AsString(pTmp);
-
-                if(!ret) ret = (int)PyString_AsString(pValue);  // just fail-safe
-            }
-            }
-            }
+                                if(!ret) ret = (int)PyString_AsString(pValue);  // just fail-safe
+                        }
+                    }
+                }
             }
             Py_DECREF(pValue);
 
