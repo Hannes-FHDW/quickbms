@@ -89,13 +89,13 @@ From Windows shell:
 
 ```console
 cd C:\the\path\to\quickbms\
-wsl --exec bin/quickbms --help
+wsl --exec bin/quickbms64 --help
 ```
 
 Or, if you did the optional `make install` step, you can avoid the need to use a specific path:
 
 ```console
-wsl quickbms
+wsl quickbms64
 ```
 
 Just keep in mind that the pathing from within Linux is different than Windows (your C drive is accessible from `/mnt/c/`, and all backslashes should be changed to forward slashes.)
