@@ -998,9 +998,10 @@ i32 quickbms_main(i32 argc, char *argv[]) {
 
     fprintf(stderr,
         "\n"
-        "QuickBMS generic files extractor and reimporter %s"
 #ifdef QUICKBMS64
-        " (64bit test)"
+        "QuickBMS (64-bit) generic files extractor and reimporter %s"
+#else
+        "QuickBMS generic files extractor and reimporter %s"
 #endif
         "\n"
         "by Luigi Auriemma\n"
