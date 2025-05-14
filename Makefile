@@ -8,6 +8,8 @@
 # "as-is".
 #
 
+# uncomment to build "quickbms64"
+QUICKBMS64 := 1
 # uncomment to include openssl in build
 USE_OPENSSL := 1
 # uncomment to include "amiga stuff" in build
@@ -57,7 +59,11 @@ SRCDIR := src
 OBJDIR := obj
 BINDIR := bin
 PREFIX := /usr/local/bin
-EXE := quickbms
+ifdef QUICKBMS64
+	EXE := quickbms64
+else
+	EXE := quickbms
+endif
 
 DEFINES	+= \
 	-DCAPSTONE_HAS_ARM \
@@ -105,6 +111,10 @@ LDFLAGS += -Og -Wl,--gdb-index,--print-map
 else
 CFLAGS += -O2 -w
 LDFLAGS += -O2 -Wl,--strip-all
+endif
+
+ifdef QUICKBMS64
+DEFINES += -DQUICKBMS64
 endif
 
 ifdef AMD64
