@@ -370,21 +370,21 @@ extern void des(unsigned char *, unsigned char *);
     #endif
 #endif
 
-# ifndef __cdecl
-#if defined(IA64)
-#  define __cdecl
+#ifndef __cdecl
+#if defined(__x86_64__)
+#define __cdecl
 #else
-#  define __cdecl  __attribute__ ((__cdecl__))
+#define __cdecl  __attribute__ ((__cdecl__))
 #endif
-# endif
+#endif
 
-# ifndef __stdcall
-#if defined(IA64)
-#  define __stdcall __attribute__ ((ms_abi))    // ???
+#ifndef __stdcall
+#if defined(__x86_64__) && defined(__GNUC__)
+#define __stdcall __attribute__ ((ms_abi))    // ???
 #else
-#  define __stdcall __attribute__ ((__stdcall__))
+#define __stdcall __attribute__ ((__stdcall__))
 #endif
-# endif
+#endif
 void __cxa_pure_virtual() { while(1); }
 
 #include "threads.h"
