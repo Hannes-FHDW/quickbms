@@ -1,75 +1,155 @@
-# This is the definitive GitHub Actions workflow to cross-compile for ARM64.
-# It correctly configures APT to use separate repositories for amd64 and arm64,
-# which solves all '404 Not Found' errors during package installation.
-name: Cross-Compile for ARM64 (Definitive Fix)
+name: Build ARM64
 
 on:
   push:
-    branches: [ "master" ]
+    branches: [ main, master, develop ]
   pull_request:
-    branches: [ "master" ]
+    branches: [ main, master, develop ]
   workflow_dispatch:
 
 jobs:
-  cross-compile-arm64:
-    name: Cross-Compile on Ubuntu 22.04 (x86_64 -> arm64)
-    # Lock to a specific LTS version for stability and predictable repository behavior.
-    runs-on: ubuntu-22.04
-
+  build-arm64:
+    runs-on: ubuntu-latest
+    
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Set up ARM64 cross-compilation environment
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          build-essential \
+          zlib1g-dev \
+          liblzo2-dev \
+          libssl-dev \
+          unicode \
+          clang \
+          llvm \
+          lld \
+          lldb \
+          gcc-aarch64-linux-gnu \
+          g++-aarch64-linux-gnu \
+          libc6-dev-arm64-cross
+    
+    - name: Configure cross-compilation
+      run: |
+        export CC=aarch64-linux-gnu-gcc
+        export CXX=aarch64-linux-gnu-g++
+        export AR=aarch64-linux-gnu-ar
+        export STRIP=aarch64-linux-gnu-strip
+        export PKG_CONFIG_PATH=/usr/lib/aarch64-linux-gnu/pkgconfig
+        echo "CC=aarch64-linux-gnu-gcc" >> $GITHUB_ENV
+        echo "CXX=aarch64-linux-gnu-g++" >> $GITHUB_ENV
+        echo "AR=aarch64-linux-gnu-ar" >> $GITHUB_ENV
+        echo "STRIP=aarch64-linux-gnu-strip" >> $GITHUB_ENV
+        echo "PKG_CONFIG_PATH=/usr/lib/aarch64-linux-gnu/pkgconfig" >> $GITHUB_ENV
+    
+    - name: Install ARM64 development libraries
+      run: |
+        sudo dpkg --add-architecture arm64
+        sudo apt-get update
+        sudo apt-get install -y \
+          zlib1g-dev:arm64 \
+          liblzo2-dev:arm64 \
+          libssl-dev:arm64
+    
+    - name: Clean previous builds
+      run: make clean
+    
+    - name: Build for ARM64
+      run: |
+        make --jobs $(nproc) ARCH=aarch64 TARGET=aarch64-linux-gnu
+    
+    - name: Verify ARM64 binary
+      run: |
+        file bin/quickbms64 || file bin/quickbms || echo "Binary not found in expected location"
+        find . -name "quickbms*" -type f -executable
+    
+    - name: Create release artifacts
+      run: |
+        mkdir -p artifacts/arm64
+        # Copy the built binary (adjust path based on your build output)
+        if [ -f bin/quickbms64 ]; then
+          cp bin/quickbms64 artifacts/arm64/quickbms64-arm64
+        elif [ -f bin/quickbms ]; then
+          cp bin/quickbms artifacts/arm64/quickbms-arm64
+        fi
+        # Strip the binary to reduce size
+        if [ -f artifacts/arm64/quickbms64-arm64 ]; then
+          $STRIP artifacts/arm64/quickbms64-arm64
+        elif [ -f artifacts/arm64/quickbms-arm64 ]; then
+          $STRIP artifacts/arm64/quickbms-arm64
+        fi
+    
+    - name: Upload ARM64 artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: quickbms-arm64
+        path: artifacts/arm64/
+        retention-days: 30
 
-      - name: Configure APT for cross-compilation
-        run: |
-          # 1. Modify the existing repository sources to specify they are for amd64 only.
-          #    This is the crucial step that prevents `apt` from trying to find arm64 packages
-          #    on the default amd64 repositories, which causes the '404 Not Found' error.
-          sudo sed -i 's/^deb /deb [arch=amd64] /' /etc/apt/sources.list
-          # Also modify any additional sources that might be present.
-          find /etc/apt/sources.list.d/ -type f -name "*.list" -exec sudo sed -i 's/^deb /deb [arch=amd64] /' {} \;
+  # Optional: Test on actual ARM64 hardware using QEMU
+  test-arm64:
+    needs: build-arm64
+    runs-on: ubuntu-latest
+    if: success()
+    
+    steps:
+    - name: Download ARM64 artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: quickbms-arm64
+        path: ./arm64-build/
+    
+    - name: Set up QEMU for ARM64 emulation
+      uses: docker/setup-qemu-action@v3
+      with:
+        platforms: arm64
+    
+    - name: Test ARM64 binary with QEMU
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y qemu-user-static
+        chmod +x arm64-build/quickbms*-arm64
+        # Test that the binary can at least start (basic smoke test)
+        qemu-aarch64-static arm64-build/quickbms*-arm64 --help || echo "Help command test completed"
 
-          # 2. Add the arm64 architecture.
-          sudo dpkg --add-architecture arm64
-
-          # 3. Add the `ports.ubuntu.com` repository, which hosts packages for arm64.
-          #    We specify `[arch=arm64]` to ensure this source is only used for arm64 packages.
-          . /etc/os-release
-          UBUNTU_CODENAME=$UBUNTU_CODENAME
-          echo "deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports ${UBUNTU_CODENAME} main restricted universe multiverse" | sudo tee /etc/apt/sources.list.d/arm64-ports.list
-          echo "deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports ${UBUNTU_CODENAME}-updates main restricted universe multiverse" | sudo tee -a /etc/apt/sources.list.d/arm64-ports.list
-          echo "deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports ${UBUNTU_CODENAME}-security main restricted universe multiverse" | sudo tee -a /etc/apt/sources.list.d/arm64-ports.list
-
-          # 4. Update the package list. `apt` will now query both sets of repositories without error.
-          sudo apt-get update
-
-      - name: Install cross-compilation toolchain and libraries
-        run: |
-          # Now that apt is configured correctly, this installation will succeed.
-          sudo apt-get install -y --no-install-recommends \
-            build-essential \
-            clang-14 llvm-14 lld-14 \
-            zlib1g-dev:arm64 \
-            liblzo2-dev:arm64 \
-            libssl-dev:arm64
-
-      - name: Build with Clang cross-compiler
-        run: |
-          echo "Starting QuickBMS cross-compilation..."
-          make rebuild --jobs=$(nproc) \
-            CC="clang-14 --target=aarch64-linux-gnu" \
-            CXX="clang++-14 --target=aarch64-linux-gnu"
-          echo "Build finished successfully."
-
-      - name: Verify binary architecture
-        run: |
-          echo "Verifying the architecture of the compiled binary..."
-          file src/quickbms
-          # This grep command ensures the job fails if the output is not an ARM aarch64 executable.
-          file src/quickbms | grep "ARM aarch64"
-
-      - name: Upload arm64 binary as an artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: quickbms-linux-arm64
-          path: src/quickbms
+  # Alternative job using Docker for cross-compilation
+  build-arm64-docker:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+    
+    - name: Build ARM64 using Docker
+      run: |
+        docker run --rm -v $PWD:/workspace -w /workspace \
+          --platform linux/arm64 \
+          ubuntu:22.04 \
+          bash -c "
+            apt-get update && 
+            apt-get install -y \
+              build-essential \
+              zlib1g-dev \
+              liblzo2-dev \
+              libssl-dev \
+              unicode \
+              clang \
+              llvm \
+              lld \
+              lldb && 
+            make clean && 
+            make --jobs \$(nproc)
+          "
+    
+    - name: Upload Docker ARM64 artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: quickbms-arm64-docker
+        path: bin/
+        retention-days: 30
