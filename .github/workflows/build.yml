@@ -16,15 +16,17 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Install ARM64 cross-compilation dependencies
+      - name: Configure apt for cross-compilation and install dependencies
         run: |
           # Add arm64 architecture for cross-compiling
           sudo dpkg --add-architecture arm64
 
-          # --- FIX ---
-          # The security repositories do not have arm64 packages, which causes apt-get update to fail.
-          # We modify the sources lists to specify that security repos should only be used for amd64.
-          sudo sed -i 's/deb http/deb [arch=amd64] http/g' /etc/apt/sources.list.d/azure-ubuntu.sources
+          # --- NEW ROBUST FIX ---
+          # Find all source list files that point to the security repository and restrict them to amd64.
+          # This prevents 404 errors when updating arm64 packages, as security repos often lack arm64 packages.
+          find /etc/apt/sources.list* -type f -exec sudo sed -i -e 's/deb http:\/\/security.ubuntu.com/deb [arch=amd64] http:\/\/security.ubuntu.com/g' {} +
+          find /etc/apt/sources.list* -type f -exec sudo sed -i -e 's/deb http:\/\/azure.archive.ubuntu.com/deb [arch=amd64,arm64] http:\/\/azure.archive.ubuntu.com/g' {} +
+          # The second line ensures that the main archive continues to serve both architectures.
           # --- END FIX ---
 
           sudo apt-get update
