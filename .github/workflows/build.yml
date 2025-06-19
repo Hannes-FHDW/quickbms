@@ -8,15 +8,14 @@ on:
   workflow_dispatch:
 
 jobs:
-  # Cross-compilation approach
-  build-arm64-cross:
-    runs-on: ubuntu-22.04  # Use 22.04 for better ARM64 cross-compilation support
+  build-arm64:
+    runs-on: ubuntu-24.04-arm
     
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
     
-    - name: Set up ARM64 cross-compilation environment
+    - name: Install build dependencies
       run: |
         sudo apt-get update
         sudo apt-get install -y \
@@ -28,18 +27,7 @@ jobs:
           clang \
           llvm \
           lld \
-          lldb \
-          gcc-aarch64-linux-gnu \
-          g++-aarch64-linux-gnu \
-          libc6-dev-arm64-cross
-    
-    - name: Configure cross-compilation
-      run: |
-        echo "CC=aarch64-linux-gnu-gcc" >> $GITHUB_ENV
-        echo "CXX=aarch64-linux-gnu-g++" >> $GITHUB_ENV
-        echo "AR=aarch64-linux-gnu-ar" >> $GITHUB_ENV
-        echo "STRIP=aarch64-linux-gnu-strip" >> $GITHUB_ENV
-        echo "PKG_CONFIG_PATH=/usr/lib/aarch64-linux-gnu/pkgconfig" >> $GITHUB_ENV
+          lldb
     
     - name: Clean previous builds
       run: make clean
@@ -50,72 +38,47 @@ jobs:
     
     - name: Verify ARM64 binary
       run: |
-        file bin/quickbms64 || file bin/quickbms || echo "Binary not found in expected location"
-        find . -name "quickbms*" -type f -executable
+        echo "Checking for built binaries..."
+        if [ -f bin/quickbms64 ]; then
+          echo "Found bin/quickbms64:"
+          file bin/quickbms64
+          ls -la bin/quickbms64
+        elif [ -f bin/quickbms ]; then
+          echo "Found bin/quickbms:"
+          file bin/quickbms
+          ls -la bin/quickbms
+        else
+          echo "Binary not found in expected location"
+          echo "Contents of bin/ directory:"
+          ls -la bin/ 2>/dev/null || echo "bin/ directory not found"
+          echo "Searching for quickbms binaries:"
+          find . -name "quickbms*" -type f -executable 2>/dev/null || echo "No quickbms executables found"
+        fi
     
     - name: Create release artifacts
       run: |
         mkdir -p artifacts/arm64
-        # Copy the built binary (adjust path based on your build output)
+        
+        # Copy the built binary
         if [ -f bin/quickbms64 ]; then
           cp bin/quickbms64 artifacts/arm64/quickbms64-arm64
+          echo "Copied bin/quickbms64 to artifacts"
         elif [ -f bin/quickbms ]; then
           cp bin/quickbms artifacts/arm64/quickbms-arm64
+          echo "Copied bin/quickbms to artifacts"
+        else
+          echo "ERROR: No binary found to copy"
+          exit 1
         fi
-        # Strip the binary to reduce size
-        if [ -f artifacts/arm64/quickbms64-arm64 ]; then
-          $STRIP artifacts/arm64/quickbms64-arm64
-        elif [ -f artifacts/arm64/quickbms-arm64 ]; then
-          $STRIP artifacts/arm64/quickbms-arm64
-        fi
+        
+        # Verify the copied binary
+        echo "Final artifact verification:"
+        ls -la artifacts/arm64/
+        file artifacts/arm64/quickbms*-arm64
     
     - name: Upload ARM64 artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: quickbms-arm64-cross
+        name: quickbms-arm64
         path: artifacts/arm64/
-        retention-days: 30
-
-  # Docker emulation approach - more reliable for ARM64
-  build-arm64-docker:
-    runs-on: ubuntu-latest
-    
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-    
-    - name: Set up QEMU
-      uses: docker/setup-qemu-action@v3
-      with:
-        platforms: arm64
-    
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v3
-    
-    - name: Build ARM64 using Docker
-      run: |
-        docker run --rm -v $PWD:/workspace -w /workspace \
-          --platform linux/arm64 \
-          ubuntu:22.04 \
-          bash -c "
-            apt-get update && 
-            apt-get install -y \
-              build-essential \
-              zlib1g-dev \
-              liblzo2-dev \
-              libssl-dev \
-              unicode \
-              clang \
-              llvm \
-              lld \
-              lldb && 
-            make clean && 
-            make --jobs \$(nproc)
-          "
-    
-    - name: Upload Docker ARM64 artifacts
-      uses: actions/upload-artifact@v4
-      with:
-        name: quickbms-arm64-docker
-        path: bin/
         retention-days: 30
