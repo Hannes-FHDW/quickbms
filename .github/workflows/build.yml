@@ -1,6 +1,6 @@
-# This is a GitHub Actions workflow to CROSS-COMPILE the quickbms project for ARM64.
-# This method is significantly faster than emulation.
-name: Cross-Compile for ARM64
+# This is the corrected GitHub Actions workflow to cross-compile the quickbms project for ARM64.
+# It solves the '404 Not Found' error by explicitly adding the ubuntu-ports repository for arm64 packages.
+name: Cross-Compile for ARM64 (Corrected)
 
 on:
   push:
@@ -11,8 +11,9 @@ on:
 
 jobs:
   cross-compile-arm64:
-    name: Cross-Compile on Ubuntu (x86_64 -> arm64)
-    runs-on: ubuntu-latest
+    name: Cross-Compile on Ubuntu 22.04 (x86_64 -> arm64)
+    # We lock to a specific LTS version for stability.
+    runs-on: ubuntu-22.04
 
     steps:
       - name: Checkout repository
@@ -20,19 +21,30 @@ jobs:
 
       - name: Set up cross-compilation environment
         run: |
-          # 1. Add the arm64 architecture so we can install arm64 libraries
-          sudo dpkg --add-architecture arm64
-          sudo apt-get update
-          
-          # 2. Install the build tools for the HOST (x86_64)
-          # We need clang to act as our cross-compiler.
-          sudo apt-get install -y \
-            build-essential \
-            clang-14 llvm-14 lld-14
+          # Use the OS release codename (e.g., "jammy") to build repository URLs
+          . /etc/os-release
+          UBUNTU_CODENAME=$UBUNTU_CODENAME
 
-          # 3. Install the required libraries for the TARGET (arm64)
-          # The ':arm64' suffix tells apt to install the arm64 version of these libraries.
-          sudo apt-get install -y \
+          # 1. Add the arm64 architecture.
+          sudo dpkg --add-architecture arm64
+
+          # 2. Add the `ports.ubuntu.com` repository, which hosts packages for architectures
+          #    other than amd64/i386. We specify `[arch=arm64]` to ensure this source is
+          #    only used for arm64 packages, preventing any potential conflicts.
+          #    This is the key step that fixes the 404 errors.
+          echo "deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports ${UBUNTU_CODENAME} main restricted universe multiverse" | sudo tee /etc/apt/sources.list.d/arm64.list
+          echo "deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports ${UBUNTU_CODENAME}-updates main restricted universe multiverse" | sudo tee -a /etc/apt/sources.list.d/arm64.list
+          echo "deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports ${UBUNTU_CODENAME}-backports main restricted universe multiverse" | sudo tee -a /etc/apt/sources.list.d/arm64.list
+          echo "deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports ${UBUNTU_CODENAME}-security main restricted universe multiverse" | sudo tee -a /etc/apt/sources.list.d/arm64.list
+
+          # 3. Update the package list. Now `apt` will successfully find the arm64 packages
+          #    from the newly added repository.
+          sudo apt-get update
+
+          # 4. Install the host build tools (amd64) and target libraries (arm64).
+          sudo apt-get install -y --no-install-recommends \
+            build-essential \
+            clang-14 llvm-14 lld-14 \
             zlib1g-dev:arm64 \
             liblzo2-dev:arm64 \
             libssl-dev:arm64
@@ -40,30 +52,20 @@ jobs:
       - name: Build with Clang cross-compiler
         run: |
           echo "Starting QuickBMS cross-compilation..."
-          
-          # 4. Invoke make with variables pointing to the cross-compiler.
-          # We tell Clang to target 'aarch64-linux-gnu' (the official name for arm64).
-          # Clang is smart enough to automatically find the correct arm64 libraries we installed.
-          # The --jobs flag with `nproc` uses all available CPU cores.
           make rebuild --jobs=$(nproc) \
             CC="clang-14 --target=aarch64-linux-gnu" \
             CXX="clang++-14 --target=aarch64-linux-gnu"
-          
-          echo "Build finished."
+          echo "Build finished successfully."
 
       - name: Verify binary architecture
         run: |
-          # The 'file' command confirms the binary is for the correct architecture.
-          # The output should contain "ARM aarch64".
+          echo "Verifying the architecture of the compiled binary..."
           file src/quickbms
+          # This grep command ensures the job fails if the output is not an ARM aarch64 executable.
+          file src/quickbms | grep "ARM aarch64"
 
-      - name: Prepare and Upload Artifact
-        run: |
-          mkdir -p artifacts
-          cp src/quickbms artifacts/quickbms_linux_arm64
-        
       - name: Upload arm64 binary as an artifact
         uses: actions/upload-artifact@v4
         with:
           name: quickbms-linux-arm64
-          path: artifacts/
+          path: src/quickbms
