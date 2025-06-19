@@ -1,19 +1,17 @@
 name: Build for Linux ARM64
 
 on:
-  # Triggers the workflow on push or pull request events for the "main" branch
   push:
     branches: [ "main" ]
   pull_request:
     branches: [ "main" ]
-
-  # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
 
 jobs:
   build-arm64:
     name: Build for Linux ARM64
-    runs-on: ubuntu-latest
+    # Use Ubuntu 22.04 LTS instead of latest to ensure stable package repositories
+    runs-on: ubuntu-22.04
 
     steps:
       - name: Checkout repository
@@ -31,7 +29,6 @@ jobs:
             zlib1g-dev:arm64 liblzo2-dev:arm64 libssl-dev:arm64
 
       - name: Build with Make for ARM64
-        # Set environment variables to configure clang for cross-compilation
         env:
           CC: clang-14
           CFLAGS: "--target=aarch64-linux-gnu"
@@ -44,7 +41,6 @@ jobs:
         run: |
           echo "Verifying the architecture of the compiled binary..."
           file quickbms64
-          # The output of the above command should contain "ARM aarch64"
 
       - name: Upload ARM64 binary artifact
         uses: actions/upload-artifact@v4
