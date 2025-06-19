@@ -1,0 +1,53 @@
+name: Build for Linux ARM64
+
+on:
+  # Triggers the workflow on push or pull request events for the "main" branch
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+jobs:
+  build-arm64:
+    name: Build for Linux ARM64
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install ARM64 cross-compilation dependencies
+        run: |
+          # Add arm64 architecture for cross-compiling
+          sudo dpkg --add-architecture arm64
+          sudo apt-get update
+          # Install build tools and target architecture libraries
+          sudo apt-get install -y --no-install-recommends \
+            build-essential \
+            clang-14 llvm-14 lld-14 \
+            zlib1g-dev:arm64 liblzo2-dev:arm64 libssl-dev:arm64
+
+      - name: Build with Make for ARM64
+        # Set environment variables to configure clang for cross-compilation
+        env:
+          CC: clang-14
+          CFLAGS: "--target=aarch64-linux-gnu"
+          LDFLAGS: "-fuse-ld=lld-14 --target=aarch64-linux-gnu"
+        run: |
+          make clean
+          make --jobs
+
+      - name: Verify build output
+        run: |
+          echo "Verifying the architecture of the compiled binary..."
+          file quickbms64
+          # The output of the above command should contain "ARM aarch64"
+
+      - name: Upload ARM64 binary artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: quickbms-linux-arm64
+          path: quickbms64
