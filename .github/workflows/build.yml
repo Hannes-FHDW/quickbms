@@ -8,8 +8,9 @@ on:
   workflow_dispatch:
 
 jobs:
-  build-arm64:
-    runs-on: ubuntu-latest
+  # Cross-compilation approach
+  build-arm64-cross:
+    runs-on: ubuntu-22.04  # Use 22.04 for better ARM64 cross-compilation support
     
     steps:
     - name: Checkout code
@@ -34,32 +35,18 @@ jobs:
     
     - name: Configure cross-compilation
       run: |
-        export CC=aarch64-linux-gnu-gcc
-        export CXX=aarch64-linux-gnu-g++
-        export AR=aarch64-linux-gnu-ar
-        export STRIP=aarch64-linux-gnu-strip
-        export PKG_CONFIG_PATH=/usr/lib/aarch64-linux-gnu/pkgconfig
         echo "CC=aarch64-linux-gnu-gcc" >> $GITHUB_ENV
         echo "CXX=aarch64-linux-gnu-g++" >> $GITHUB_ENV
         echo "AR=aarch64-linux-gnu-ar" >> $GITHUB_ENV
         echo "STRIP=aarch64-linux-gnu-strip" >> $GITHUB_ENV
         echo "PKG_CONFIG_PATH=/usr/lib/aarch64-linux-gnu/pkgconfig" >> $GITHUB_ENV
     
-    - name: Install ARM64 development libraries
-      run: |
-        sudo dpkg --add-architecture arm64
-        sudo apt-get update
-        sudo apt-get install -y \
-          zlib1g-dev:arm64 \
-          liblzo2-dev:arm64 \
-          libssl-dev:arm64
-    
     - name: Clean previous builds
       run: make clean
     
     - name: Build for ARM64
       run: |
-        make --jobs $(nproc) ARCH=aarch64 TARGET=aarch64-linux-gnu
+        make --jobs $(nproc)
     
     - name: Verify ARM64 binary
       run: |
@@ -85,43 +72,22 @@ jobs:
     - name: Upload ARM64 artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: quickbms-arm64
+        name: quickbms-arm64-cross
         path: artifacts/arm64/
         retention-days: 30
 
-  # Optional: Test on actual ARM64 hardware using QEMU
-  test-arm64:
-    needs: build-arm64
-    runs-on: ubuntu-latest
-    if: success()
-    
-    steps:
-    - name: Download ARM64 artifacts
-      uses: actions/download-artifact@v4
-      with:
-        name: quickbms-arm64
-        path: ./arm64-build/
-    
-    - name: Set up QEMU for ARM64 emulation
-      uses: docker/setup-qemu-action@v3
-      with:
-        platforms: arm64
-    
-    - name: Test ARM64 binary with QEMU
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y qemu-user-static
-        chmod +x arm64-build/quickbms*-arm64
-        # Test that the binary can at least start (basic smoke test)
-        qemu-aarch64-static arm64-build/quickbms*-arm64 --help || echo "Help command test completed"
-
-  # Alternative job using Docker for cross-compilation
+  # Docker emulation approach - more reliable for ARM64
   build-arm64-docker:
     runs-on: ubuntu-latest
     
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
+    
+    - name: Set up QEMU
+      uses: docker/setup-qemu-action@v3
+      with:
+        platforms: arm64
     
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
