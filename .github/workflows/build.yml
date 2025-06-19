@@ -10,7 +10,6 @@ on:
 jobs:
   build-arm64:
     name: Build for Linux ARM64
-    # Use Ubuntu 22.04 LTS instead of latest to ensure stable package repositories
     runs-on: ubuntu-22.04
 
     steps:
@@ -21,7 +20,15 @@ jobs:
         run: |
           # Add arm64 architecture for cross-compiling
           sudo dpkg --add-architecture arm64
+
+          # --- FIX ---
+          # The security repositories do not have arm64 packages, which causes apt-get update to fail.
+          # We modify the sources lists to specify that security repos should only be used for amd64.
+          sudo sed -i 's/deb http/deb [arch=amd64] http/g' /etc/apt/sources.list.d/azure-ubuntu.sources
+          # --- END FIX ---
+
           sudo apt-get update
+
           # Install build tools and target architecture libraries
           sudo apt-get install -y --no-install-recommends \
             build-essential \
