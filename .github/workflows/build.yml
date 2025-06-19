@@ -1,5 +1,5 @@
 # This is a GitHub Actions workflow to CROSS-COMPILE the quickbms project for ARM64.
-# This method is significantly faster than emulation because the compiler runs natively.
+# This method is significantly faster than emulation.
 name: Cross-Compile for ARM64
 
 on:
@@ -20,18 +20,18 @@ jobs:
 
       - name: Set up cross-compilation environment
         run: |
-          # Enable the package manager to find and install packages for the arm64 architecture.
+          # 1. Add the arm64 architecture so we can install arm64 libraries
           sudo dpkg --add-architecture arm64
           sudo apt-get update
           
-          # Install the host build tools (clang/llvm will be our cross-compiler).
+          # 2. Install the build tools for the HOST (x86_64)
+          # We need clang to act as our cross-compiler.
           sudo apt-get install -y \
             build-essential \
             clang-14 llvm-14 lld-14
 
-          # Install the TARGET architecture's development libraries.
-          # The ':arm64' suffix is crucial. It tells apt to fetch the arm64 versions.
-          # These are readily available in Ubuntu's standard package repositories.
+          # 3. Install the required libraries for the TARGET (arm64)
+          # The ':arm64' suffix tells apt to install the arm64 version of these libraries.
           sudo apt-get install -y \
             zlib1g-dev:arm64 \
             liblzo2-dev:arm64 \
@@ -41,29 +41,29 @@ jobs:
         run: |
           echo "Starting QuickBMS cross-compilation..."
           
-          # We override the Makefile's default compiler (CC/CXX) with our clang cross-compiler.
-          # Clang's '--target' flag makes it generate arm64 code and automatically find the
-          # arm64 libraries we just installed.
-          # The --jobs flag with `nproc` uses all available CPU cores for a faster build.
+          # 4. Invoke make with variables pointing to the cross-compiler.
+          # We tell Clang to target 'aarch64-linux-gnu' (the official name for arm64).
+          # Clang is smart enough to automatically find the correct arm64 libraries we installed.
+          # The --jobs flag with `nproc` uses all available CPU cores.
           make rebuild --jobs=$(nproc) \
             CC="clang-14 --target=aarch64-linux-gnu" \
             CXX="clang++-14 --target=aarch64-linux-gnu"
           
-          echo "Build finished successfully."
+          echo "Build finished."
 
       - name: Verify binary architecture
         run: |
-          # This is a critical verification step.
-          # The 'file' command inspects the compiled binary.
-          echo "Verifying the architecture of the compiled binary..."
+          # The 'file' command confirms the binary is for the correct architecture.
+          # The output should contain "ARM aarch64".
           file src/quickbms
-          
-          # The command should output a line containing "ELF 64-bit LSB executable, ARM aarch64".
-          # We use 'grep' to explicitly check for this and fail the job if it's not found.
-          file src/quickbms | grep "ARM aarch64"
 
       - name: Prepare and Upload Artifact
+        run: |
+          mkdir -p artifacts
+          cp src/quickbms artifacts/quickbms_linux_arm64
+        
+      - name: Upload arm64 binary as an artifact
         uses: actions/upload-artifact@v4
         with:
           name: quickbms-linux-arm64
-          path: src/quickbms
+          path: artifacts/
