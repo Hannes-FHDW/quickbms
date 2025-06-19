@@ -1,58 +1,69 @@
-name: Build for Linux ARM64
+# This is a GitHub Actions workflow to CROSS-COMPILE the quickbms project for ARM64.
+# This method is significantly faster than emulation because the compiler runs natively.
+name: Cross-Compile for ARM64
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "master" ]
   pull_request:
-    branches: [ "main" ]
+    branches: [ "master" ]
   workflow_dispatch:
 
 jobs:
-  build-arm64:
-    name: Build for Linux ARM64
-    runs-on: ubuntu-22.04
+  cross-compile-arm64:
+    name: Cross-Compile on Ubuntu (x86_64 -> arm64)
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Configure apt for cross-compilation and install dependencies
+      - name: Set up cross-compilation environment
         run: |
-          # Add arm64 architecture for cross-compiling
+          # Enable the package manager to find and install packages for the arm64 architecture.
           sudo dpkg --add-architecture arm64
-
-          # --- NEW ROBUST FIX ---
-          # Find all source list files that point to the security repository and restrict them to amd64.
-          # This prevents 404 errors when updating arm64 packages, as security repos often lack arm64 packages.
-          find /etc/apt/sources.list* -type f -exec sudo sed -i -e 's/deb http:\/\/security.ubuntu.com/deb [arch=amd64] http:\/\/security.ubuntu.com/g' {} +
-          find /etc/apt/sources.list* -type f -exec sudo sed -i -e 's/deb http:\/\/azure.archive.ubuntu.com/deb [arch=amd64,arm64] http:\/\/azure.archive.ubuntu.com/g' {} +
-          # The second line ensures that the main archive continues to serve both architectures.
-          # --- END FIX ---
-
           sudo apt-get update
-
-          # Install build tools and target architecture libraries
-          sudo apt-get install -y --no-install-recommends \
+          
+          # Install the host build tools (clang/llvm will be our cross-compiler).
+          sudo apt-get install -y \
             build-essential \
-            clang-14 llvm-14 lld-14 \
-            zlib1g-dev:arm64 liblzo2-dev:arm64 libssl-dev:arm64
+            clang-14 llvm-14 lld-14
 
-      - name: Build with Make for ARM64
-        env:
-          CC: clang-14
-          CFLAGS: "--target=aarch64-linux-gnu"
-          LDFLAGS: "-fuse-ld=lld-14 --target=aarch64-linux-gnu"
-        run: |
-          make clean
-          make --jobs
+          # Install the TARGET architecture's development libraries.
+          # The ':arm64' suffix is crucial. It tells apt to fetch the arm64 versions.
+          # These are readily available in Ubuntu's standard package repositories.
+          sudo apt-get install -y \
+            zlib1g-dev:arm64 \
+            liblzo2-dev:arm64 \
+            libssl-dev:arm64
 
-      - name: Verify build output
+      - name: Build with Clang cross-compiler
         run: |
+          echo "Starting QuickBMS cross-compilation..."
+          
+          # We override the Makefile's default compiler (CC/CXX) with our clang cross-compiler.
+          # Clang's '--target' flag makes it generate arm64 code and automatically find the
+          # arm64 libraries we just installed.
+          # The --jobs flag with `nproc` uses all available CPU cores for a faster build.
+          make rebuild --jobs=$(nproc) \
+            CC="clang-14 --target=aarch64-linux-gnu" \
+            CXX="clang++-14 --target=aarch64-linux-gnu"
+          
+          echo "Build finished successfully."
+
+      - name: Verify binary architecture
+        run: |
+          # This is a critical verification step.
+          # The 'file' command inspects the compiled binary.
           echo "Verifying the architecture of the compiled binary..."
-          file quickbms64
+          file src/quickbms
+          
+          # The command should output a line containing "ELF 64-bit LSB executable, ARM aarch64".
+          # We use 'grep' to explicitly check for this and fail the job if it's not found.
+          file src/quickbms | grep "ARM aarch64"
 
-      - name: Upload ARM64 binary artifact
+      - name: Prepare and Upload Artifact
         uses: actions/upload-artifact@v4
         with:
           name: quickbms-linux-arm64
-          path: quickbms64
+          path: src/quickbms
